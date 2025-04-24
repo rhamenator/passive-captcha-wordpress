@@ -1,0 +1,36 @@
+name: PHP Linting (PHPCS)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  phpcs:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: phpcs
+
+      - name: Install WordPress Coding Standards
+        run: |
+          composer global require "squizlabs/php_codesniffer=*"
+          composer global require wp-coding-standards/wpcs
+          phpcs --config-set installed_paths ~/.composer/vendor/wp-coding-standards/wpcs
+          phpcs --config-set default_standard WordPress
+
+          - name: Run PHPCS with custom config
+          run: |
+            ~/.composer/vendor/bin/phpcs --standard=phpcs.xml.dist .
+  

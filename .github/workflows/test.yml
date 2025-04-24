@@ -1,0 +1,61 @@
+name: Passive CAPTCHA Plugin Tests
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+    branches:
+      - '*'
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mariadb:10.5
+        env:
+          MYSQL_DATABASE: wordpress_test
+          MYSQL_USER: wp_test
+          MYSQL_PASSWORD: password
+          MYSQL_ROOT_PASSWORD: rootpassword
+        ports:
+          - 3306:3306
+        options: --health-cmd="mysqladmin ping --silent" --health-interval=10s --health-timeout=5s --health-retries=5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker containers
+        run: |
+          docker compose build
+          docker compose version
+
+      - name: Start WordPress and DB containers
+        run: docker-compose up -d wordpress db
+
+      - name: Wait for MySQL to be ready
+        run: |
+          for i in {1..30}; do
+            docker-compose exec -T db mysqladmin ping -p'password' && break
+            echo "Waiting for DB..."
+            sleep 2
+          done
+
+      - name: Install WordPress test library
+        run: make install-tests
+
+      - name: Reset DB and activate plugin
+        run: make db-reset activate-plugin
+
+      - name: Run PHPUnit tests
+        run: make test
+
+      - name: Shut down containers
+        if: always()
+        run: docker compose down
