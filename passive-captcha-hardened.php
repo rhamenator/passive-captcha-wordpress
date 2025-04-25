@@ -3,7 +3,8 @@
  * Plugin Name: Passive CAPTCHA Hardened (Generic Form Support - Multisite Ready)
  * Description: Passive CAPTCHA with timing, nonce, JA3 fingerprinting, webhook escalation, multi-site support, and automated tests. Requires manual integration into form handling.
  * Version: 4.0
- * Author: Your Name
+ * Author: Rich Hamilton
+ * Author URI: https:\\www.github.com\rhamenato
  * Network: true
  */
 
@@ -140,19 +141,28 @@ function pch_verify_submission() {
         return true; // Whitelisted, skip further checks, validation succeeds
     }
 
-    // --- JA3 Fingerprint Check (Only if JA3 header expected/configured) ---
-    // Consider adding an admin option to enable/disable JA3 check?
-    // if (pch_get_option('pch_enable_ja3_check', false)) { // Example conditional check
-        if (empty($ja3_fingerprint) || strlen($ja3_fingerprint) < 10) { // Basic check
-            pch_register_failure($ip);
-            pch_send_webhook([
-                'event' => 'ja3_missing_or_invalid', 'ip' => $ip, 'user_agent' => $ua,
-                'ja3' => $ja3_fingerprint, 'timestamp' => time()
-                // Add 'form_identifier' if available/passed from calling context?
-            ]);
-            return new WP_Error('ja3_invalid', __('Security validation failed (JA3).', 'passive-captcha-hardened'));
+    // --- Conditional JA3 Fingerprint Check ---
+    // Only perform the check if the JA3 fingerprint header is NOT empty.
+    // If the header is empty (e.g., server not configured), skip this specific check.
+    if (!empty($ja3_fingerprint)) {
+        // The header exists, now check if it's potentially invalid (e.g., too short)
+        $min_ja3_len = 10; // Minimum plausible length for a JA3 hash
+        if (strlen($ja3_fingerprint) < $min_ja3_len) {
+             pch_register_failure($ip); // Register failure if JA3 is present but invalid
+             pch_send_webhook([
+                 'event' => 'ja3_invalid_format', // More specific event
+                 'ip' => $ip,
+                 'user_agent' => $ua,
+                 'ja3' => $ja3_fingerprint,
+                 'timestamp' => time()
+                 // Add 'form_identifier' if available/passed from calling context?
+             ]);
+             return new WP_Error('ja3_invalid_format', __('Security validation failed (JA3 Format).', 'passive-captcha-hardened'));
         }
-    // }
+        // If JA3 header exists and has minimum length, it passes this basic check.
+    }
+    // --- End Conditional JA3 Check ---
+
 
     // --- Rate Limit Check ---
     if (pch_check_rate_limit($ip)) {
@@ -228,7 +238,6 @@ function pch_verify_submission() {
     delete_transient($session_transient_key); // Delete the used session transient *only* on full success
     return true; // Indicate successful validation
 }
-
 
 // --- Admin UI ---
 function pch_add_admin_menu() {
