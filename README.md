@@ -1,3 +1,7 @@
+<p align="center">
+  <img src=".github/assets/logo.png" alt="Passive CAPTCHA for WordPress logo" width="220">
+</p>
+
 # Passive CAPTCHA Hardened (Generic Form Support - Managed Hosting Ready)
 
 **Version:** 4.2
