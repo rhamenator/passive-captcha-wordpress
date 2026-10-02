@@ -1,4 +1,4 @@
-FROM php:8.4-cli-alpine AS base
+FROM php:8.5-cli-alpine AS base
 RUN apk update && apk upgrade --no-cache && apk add --no-cache bash
 
 FROM base
